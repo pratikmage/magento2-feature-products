@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../Backend/etc/menu.xsd">
+    <menu>              
+        <add id="Brainvire_ProductGrid::featureproduct_grid" title="Featured Products" module="Brainvire_CustomProductImport" sortOrder="20" parent="Brainvire_CustomProductImport::brainvirecustomindex" action="bvadmin/featureproduct" resource="Brainvire_ProductGrid::featureproduct_grid"/>                
+    </menu>
+</config>

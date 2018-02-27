@@ -1,0 +1,85 @@
+<?php
+
+$_productCollection = $block->getCollection();
+$_helper = $this->helper('Magento\Catalog\Helper\Output');
+$imageBlock = $block->getLayout()->createBlock('Magento\Catalog\Block\Product\Image');
+?>
+<?php
+$viewMode = 'grid';
+$image = 'category_page_grid';
+$showDescription = false;
+$templateType = \Magento\Catalog\Block\Product\ReviewRendererInterface::SHORT_VIEW;
+
+/**
+ * Position for actions regarding image size changing in vde if needed
+ */
+$pos = $block->getPositioned();
+$position = '';
+?>
+<?php if ($_productCollection->count()): ?>
+<div class="page-title-wrapper">
+    <h2 class="page-title">
+        <span class="base" data-ui-id="page-title-wrapper"><?php echo __('Featured products'); ?></span>
+    </h2>
+       <?php /* <div class="action"><a href="<?php  echo $block->getFproductListUrl(); ?>" class="view-more-links" >
+                        <?php echo __('View More') ?>
+        </a>
+        </div> */ ?>
+</div>
+
+
+    <div class="trending-desktop-wrapper products wrapper <?php echo $viewMode; ?> products-<?php echo $viewMode; ?>">
+        <?php $iterator = 1; ?>
+        <ol id="trending" class="products list items product-items">
+            <?php /** @var $_product \Magento\Catalog\Model\Product */ ?>
+            <?php foreach ($_productCollection as $_product): ?><?php //echo "<pre>"; print_r($_product->getData()); exit; ?>
+                <?php echo($iterator++ == 1) ? '<li class="item product product-item">' : '</li><li class="item product product-item">' ?>
+                <div class="product-item-info" data-container="product-grid">
+                    <?php // Product Image ?>
+                    <?php
+                    $productImage = $block->getImage($_product, $image);
+                    if ($pos != null) {
+                        $position = ' style="left:' . $productImage->getWidth() . 'px;'
+                            . 'top:' . $productImage->getHeight() . 'px;"';
+                    }
+                    ?>
+                    <a href="<?php /* @escapeNotVerified */ echo $_product->getProductUrl() ?>" class="product photo product-item-photo" tabindex="-1">
+                        <?php echo $productImage->toHtml(); ?>
+                    </a>
+                    <div class="product details product-item-details">
+                        <?php
+                        $_productNameStripped = $block->stripTags($_product->getName(), null, true);
+                        ?>
+                        <strong class="product name product-item-name">
+                            <a class="product-item-link"
+                               href="<?php /* @escapeNotVerified */ echo $_product->getProductUrl() ?>">
+                                <?php /* @escapeNotVerified */ echo $_helper->productAttribute($_product, $_product->getName(), 'name'); ?>
+                            </a>
+                        </strong>
+                        <?php if($this->getReviewsSummaryHtml($_product, false, true)): ?>
+                        <div class="review_summery">
+                            <?php echo $this->getReviewsSummaryHtml($_product,\Magento\Catalog\Block\Product\ReviewRendererInterface::FULL_VIEW,true) ?>
+                        </div>
+                        <?php else: ?>
+                            <div class="review_summery"></div>
+                        <?php endif; ?>
+                        
+                       
+                        <?php /* @escapeNotVerified */ echo $block->getProductPrice($_product) ?>
+                      
+                            <?php if($_product->getBoxSaverValue() == "Yes"): ?>
+                                <div class="box_saver"><?php echo __('Box Saver') ?></div>
+                            <?php endif; ?>
+                        
+                    </div>
+                
+                </div>
+        <?php echo($iterator == count($_productCollection) + 1) ? '</li>' : '' ?>
+    <?php endforeach;  ?>
+    </ol>
+    </div>
+<?php else: ?>
+<div class="message info empty"><div><?php /* @escapeNotVerified */ echo __('Trending products not available.') ?></div></div>
+<?php endif; ?>
+
+
