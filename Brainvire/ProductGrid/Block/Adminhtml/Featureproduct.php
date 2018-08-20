@@ -26,6 +26,12 @@ class Featureproduct extends \Magento\Backend\Block\Widget\Grid\Container {
     }
 
     protected function _prepareLayout() {
+
+        $this->getToolbar()->addChild(
+                'store_switcher', 'Magento\Backend\Block\Store\Switcher'
+        );
+
+
         $addButtonProps = [
             'id' => 'featured-products',
             'label' => __('Save Featured Products'),

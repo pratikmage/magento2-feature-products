@@ -31,8 +31,8 @@ class Grid extends \Magento\Backend\Block\Widget\Grid\Extended {
         $this->setId('featureproductGrid');
         $this->setDefaultSort('entity_id');
         $this->setDefaultDir('ASC');
-        $this->setSaveParametersInSession(true);
-        $this->setUseAjax(false);
+        //$this->setSaveParametersInSession(true);
+        $this->setUseAjax(true);
         $this->setRowClickCallback('FeaturedRowClick');
     }
 
@@ -43,9 +43,9 @@ class Grid extends \Magento\Backend\Block\Widget\Grid\Extended {
      */
     protected function _prepareCollection() {
 
-        $collection = $this->_productFactory->create()->getCollection()->addAttributeToSelect(
-                '*'
-        );
+        $collection = $this->_productFactory->create()->getCollection()->addAttributeToSelect('*')
+        ->addAttributeToFilter('status',\Magento\Catalog\Model\Product\Attribute\Source\Status::STATUS_ENABLED)
+        ->addAttributeToFilter('visibility',array('nin'=>[1,3]));
         $this->setCollection($collection);
 
 
@@ -84,7 +84,13 @@ class Grid extends \Magento\Backend\Block\Widget\Grid\Extended {
             'header_css_class' => 'col-select',
             'column_css_class' => 'col-select'
         ]);
-
+		$this->addColumn('entity_id', [
+            'header' => __('ID'),
+            'index' => 'entity_id',
+            'header_css_class' => 'col-name',
+            'column_css_class' => 'col-name'
+                ]
+        );
         $this->addColumn('name', [
             'header' => __('Name'),
             'index' => 'name',
@@ -113,11 +119,16 @@ class Grid extends \Magento\Backend\Block\Widget\Grid\Extended {
     }
 
     public function getSelectedProducts() {
+        if ($this->getRequest()->getParam('store')) {
+            $store_id = $this->getRequest()->getParam('store');
+        } else {
+            $store_id = 0;
+        }
         $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
         $resource = $objectManager->get('Magento\Framework\App\ResourceConnection');
         $connection = $resource->getConnection();
         $tableName = $resource->getTableName('bv_productgrid');
-        $sql = "SELECT product_id FROM " . $tableName;
+        $sql = "SELECT product_id FROM " . $tableName . " WHERE store_id=" . $store_id;
         $results = $connection->fetchAll($sql);
         $selectedProducts = array();
         foreach ($results as $productIds) {
@@ -130,15 +141,22 @@ class Grid extends \Magento\Backend\Block\Widget\Grid\Extended {
      * @return string
      */
     public function getGridUrl() {
-        return $this->getUrl('*/*/index', array('_current' => true));
+        return $this->getUrl('*/*/grid', array('_current' => true));
     }
 
     protected function _afterToHtml($html) {
-        return $this->_prependHtml() . parent::_afterToHtml($html) . $this->_appendHtml();
+		$var=$this->getRequest()->getParams();
+		if(!in_array('ajax',$var)){
+		//if(false){
+			return $this->_prependHtml() . parent::_afterToHtml($html) . $this->_appendHtml();
+		}
     }
 
     private function _prependHtml() {
         $gridName = $this->getJsObjectName();
+         
+         $selectedIds=$this->getSelectedProducts();
+         $selectedProducts = (implode(",",$selectedIds));
         $html = <<<EndHTML
 		<script type="text/javascript">              
     //<![CDATA[
@@ -153,31 +171,48 @@ class Grid extends \Magento\Backend\Block\Widget\Grid\Extended {
                 document.forms["featured_edit_form"].submit();                              
             }
             
-   
+			var checkBoxes = new Array();
+			var checkBoxesDuplicate = new Array();
             initCheckboxes = function() {                
                 var everycheckbox = $("#featureproductGrid_table tbody input.checkbox:checked");
                 
-                var checkBoxes = new Array();
                 everycheckbox.each(function(element, index) {
-                    checkBoxes.push(index.value);               
+                    checkBoxes.push(index.value); 
+                             
                 });
-                $("#in_featured_products").val(checkBoxes.toString());	                 
+				 var selectedProducts = "$selectedProducts";
+				 $("#in_featured_products").val(selectedProducts);
+				if($("#in_featured_products").val()){
+					checkBoxesDuplicate = $("#in_featured_products").val().split(",");
+				}
+                $.merge(checkBoxesDuplicate,checkBoxes);
+				checkBoxesDuplicate = checkBoxesDuplicate.filter((x, i, a) => a.indexOf(x) == i);
+                $("#in_featured_products").val(checkBoxesDuplicate);	                 
                 }  
                 
-            var checkBoxes = new Array();
-                
-                 var checkBoxes = new Array();
+            
+                jQuery('.checkbox').click(function()
+				{
+					if(jQuery(this).is(':checked')) 
+					{
+						checkBoxesDuplicate.push(jQuery(this).val());
+						checkBoxesDuplicate = checkBoxesDuplicate.filter((x, i, a) => a.indexOf(x) == i);
+						$("#in_featured_products").val(checkBoxesDuplicate);
+					} 
+					else
+					{
+						var val = jQuery(this).val();
+						var index = $.inArray(val, checkBoxesDuplicate);
+						if (index != -1) {
+							checkBoxesDuplicate.splice(index, 1);
+						}
+					    checkBoxesDuplicate = checkBoxesDuplicate.filter((x, i, a) => a.indexOf(x) == i);
+					    $("#in_featured_products").val(checkBoxesDuplicate);
+					} 
+				});
+				
                 FeaturedRowClick = function(grid, event){
-                selections = $.map($("#featureproductGrid_table tbody input.checkbox:checked"), function(a) {                                         
-                    return a.value;                                              
-                })
-                render_selections();
-                    
                 }
-                var selections = [],
-                render_selections = function(){
-                     $('#in_featured_products').val(selections.join(', '));
-                }                                             
                 
        });                
       //]]>		
@@ -189,6 +224,7 @@ EndHTML;
     }
 
     private function _appendHtml() {
+		
         $html = <<<EndHTML
 		'<script type="text/javascript">    
                     var checkBoxes;
@@ -199,10 +235,8 @@ EndHTML;
         ], function ($,mageTemplate) {                                        
 		
 		checkbox_all = $("#featureproductGrid_table thead input.checkbox").first();               
-				
-	initCheckboxes();
+		initCheckboxes();
              
-                
        });                
       //]]>		
         </script>          

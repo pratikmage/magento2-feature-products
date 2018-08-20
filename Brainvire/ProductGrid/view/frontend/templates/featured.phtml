@@ -1,8 +1,9 @@
 <?php
-
 $_productCollection = $block->getCollection();
 $_helper = $this->helper('Magento\Catalog\Helper\Output');
+$_helperWishlist = $this->helper('Brainvire\General\Helper\Data');
 $imageBlock = $block->getLayout()->createBlock('Magento\Catalog\Block\Product\Image');
+$priceHelper = $this->helper('Magento\Framework\Pricing\Helper\Data');
 ?>
 <?php
 $viewMode = 'grid';
@@ -16,16 +17,16 @@ $templateType = \Magento\Catalog\Block\Product\ReviewRendererInterface::SHORT_VI
 $pos = $block->getPositioned();
 $position = '';
 ?>
-<?php if ($_productCollection->count()): ?>
-<div class="page-title-wrapper">
-    <h2 class="page-title">
-        <span class="base" data-ui-id="page-title-wrapper"><?php echo __('Featured products'); ?></span>
-    </h2>
-       <?php /* <div class="action"><a href="<?php  echo $block->getFproductListUrl(); ?>" class="view-more-links" >
-                        <?php echo __('View More') ?>
-        </a>
-        </div> */ ?>
-</div>
+<?php if (count($_productCollection) > 0): ?>
+    <div class="page-title-wrapper">
+        <h2 class="page-title">
+            <span class="base" data-ui-id="page-title-wrapper"><?php echo __('Featured products'); ?></span>
+        </h2>
+        <?php /* <div class="action"><a href="<?php  echo $block->getFproductListUrl(); ?>" class="view-more-links" >
+          <?php echo __('View More') ?>
+          </a>
+          </div> */ ?>
+    </div>
 
 
     <div class="trending-desktop-wrapper products wrapper <?php echo $viewMode; ?> products-<?php echo $viewMode; ?>">
@@ -33,9 +34,14 @@ $position = '';
         <ol id="trending" class="products list items product-items">
             <?php /** @var $_product \Magento\Catalog\Model\Product */ ?>
             <?php foreach ($_productCollection as $_product): ?><?php //echo "<pre>"; print_r($_product->getData()); exit; ?>
-                <?php echo($iterator++ == 1) ? '<li class="item product product-item">' : '</li><li class="item product product-item">' ?>
+                <?php echo ($iterator++ == 1) ? '<li class="item product product-item">' : '</li><li class="item product product-item">' ?>
                 <div class="product-item-info" data-container="product-grid">
-                    <?php // Product Image ?>
+                    <?php // Product Image  ?>
+                    <?php if ($_helperWishlist->isInSale($_product->getId())): ?>
+                        <span class="product_page_sale_label">
+                            <img src="<?php echo $block->getViewFileUrl('Brainvire_General::images/sale-lab.png'); ?>"/>
+                        </span>
+                    <?php endif; ?>
                     <?php
                     $productImage = $block->getImage($_product, $image);
                     if ($pos != null) {
@@ -43,7 +49,8 @@ $position = '';
                             . 'top:' . $productImage->getHeight() . 'px;"';
                     }
                     ?>
-                    <a href="<?php /* @escapeNotVerified */ echo $_product->getProductUrl() ?>" class="product photo product-item-photo" tabindex="-1">
+                    <a href="<?php /* @escapeNotVerified */
+                    echo $_product->getProductUrl() ?>" class="product photo product-item-photo" tabindex="-1">
                         <?php echo $productImage->toHtml(); ?>
                     </a>
                     <div class="product details product-item-details">
@@ -52,34 +59,134 @@ $position = '';
                         ?>
                         <strong class="product name product-item-name">
                             <a class="product-item-link"
-                               href="<?php /* @escapeNotVerified */ echo $_product->getProductUrl() ?>">
-                                <?php /* @escapeNotVerified */ echo $_helper->productAttribute($_product, $_product->getName(), 'name'); ?>
+                               href="<?php /* @escapeNotVerified */
+                               echo $_product->getProductUrl() ?>">
+                                <?php /* @escapeNotVerified */
+                                $in = $_helper->productAttribute($_product, $_product->getName(), 'name'); ?>
+                                <?php echo $out = strlen($in) > 80 ? substr($in, 0, 80) . "..." : $in; ?>
                             </a>
                         </strong>
-                        <?php if($this->getReviewsSummaryHtml($_product, false, true)): ?>
-                        <div class="review_summery">
-                            <?php echo $this->getReviewsSummaryHtml($_product,\Magento\Catalog\Block\Product\ReviewRendererInterface::FULL_VIEW,true) ?>
-                        </div>
+                        <?php if ($this->getReviewsSummaryHtml($_product, false, true)): ?>
+                            <div class="review_summery">
+                                <?php echo $this->getReviewsSummaryHtml($_product, \Magento\Catalog\Block\Product\ReviewRendererInterface::FULL_VIEW, true) ?>
+                            </div>
                         <?php else: ?>
                             <div class="review_summery"></div>
                         <?php endif; ?>
-                        
-                       
-                        <?php /* @escapeNotVerified */ echo $block->getProductPrice($_product) ?>
-                      
-                            <?php if($_product->getBoxSaverValue() == "Yes"): ?>
-                                <div class="box_saver"><?php echo __('Box Saver') ?></div>
-                            <?php endif; ?>
-                        
+
+                        <div class="merge_two_block">
+                            <span class="wishlist_with_count">
+                                <?php // $IsInWishlist = $block->getChildBlock('name_catalog_isinwishlist');  ?>
+                                <?php $is_in_wishlist = $block->isInWishlist($_product) ?>
+                                <a href="#"
+                                   data-post='<?php echo $this->helper('Magento\Wishlist\Helper\Data')->getAddParams($_product) ?>'
+                                   class="action towishlist" data-action="add-to-wishlist"></a>
+                                <span class="wishlist_count"><?php echo __('('); ?><?php echo $_helperWishlist->countWishlist($_product->getId()); ?><?php echo __(')'); ?></span>
+                            </span>
+                            <?php /* @escapeNotVerified */
+                            //echo $block->getProductPrice($_product) ?>
+							<?php if($_product->getPrice() != $_product->getFinalPrice()): ?>
+							<div class="price-box">
+								 <span class="old-price">
+									 <span class="price-wrapper ">
+									   <span class="price">
+											<?php
+												echo $priceHelper->currency($_product->getPrice(), true, false);
+											?>
+									   </span>
+									</span>
+								 </span>
+								 <span class="special-price">
+									  <span class="price">
+											<?php
+												echo $priceHelper->currency($_product->getFinalPrice(), true, false);
+											?>
+									  </span>
+								 </span>
+							</div>
+							<?php else: ?>
+							<div class="price-box">
+								 <span class="special-price">
+									  <span class="price">
+											<?php
+												echo $priceHelper->currency($_product->getPrice(), true, false);
+											?>
+									  </span>
+								 </span>
+							</div>
+							<?php endif; ?>
+                        </div>
+                        <?php if ($_product->getAttributeText('box_saver') == "Yes"): ?>
+                            <div class="box_saver"><?php echo __('Box Saver') ?></div>
+                        <?php else: ?>
+                            <div class="empty_baiplus"><?php //echo __('Box Saver') ?></div>
+                        <?php endif; ?>
                     </div>
-                
+
                 </div>
-        <?php echo($iterator == count($_productCollection) + 1) ? '</li>' : '' ?>
-    <?php endforeach;  ?>
-    </ol>
+                <?php echo ($iterator == count($_productCollection) + 1) ? '</li>' : '' ?>
+            <?php endforeach; ?>
+        </ol>
     </div>
 <?php else: ?>
-<div class="message info empty"><div><?php /* @escapeNotVerified */ echo __('Trending products not available.') ?></div></div>
+    <div class="message info empty">
+        <div><?php /* @escapeNotVerified */
+            echo __('Featured products not available.') ?></div>
+    </div>
 <?php endif; ?>
 
+<script>
+    require(['jquery', 'RB_Banner/js/slick'], function ($) {
+        $('#trending').slick({
 
+            slideBy: 4,
+            scrollPerPage: true,
+            responsive: [
+                {
+                    breakpoint: 2560,
+                    settings: {
+                        slidesToShow: 6,
+                        slidesToScroll: 6
+                    }
+                },
+                {
+                    breakpoint: 1366,
+                    settings: {
+                        slidesToShow: 5,
+                        slidesToScroll: 5
+                    }
+                },
+                {
+                    breakpoint: 1025,
+                    settings: {
+                        slidesToShow: 4,
+                        slidesToScroll: 4
+                    }
+                },
+                {
+                    breakpoint: 769,
+                    settings: {
+                        slidesToShow: 3,
+                        slidesToScroll: 3
+                    }
+                },
+                {
+                    breakpoint: 767,
+                    settings: {
+                        slidesToShow: 3,
+                        slidesToScroll: 3
+                    }
+                },
+                {
+                    breakpoint: 480,
+                    settings: {
+                        slidesToShow: 1,
+                        slidesToScroll: 1
+                    }
+                }
+
+            ]
+
+        });
+    });
+</script>

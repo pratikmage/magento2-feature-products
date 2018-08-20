@@ -1,13 +1,14 @@
 <?php
 
-namespace Brainvire\Productgrid\Block;
+namespace Brainvire\ProductGrid\Block;
 
-use \Magento\Wishlist\Helper\Data;
-use \Magento\Catalog\Api\Data\ProductInterface;
+
+use Magento\Catalog\Api\Data\ProductInterface;
+use Magento\Catalog\Api\ProductRepositoryInterface;
+use Magento\Framework\Api\SearchCriteriaBuilder;
+use Magento\Framework\Api\Filter;
 
 class Featured extends \Magento\Catalog\Block\Product\AbstractProduct {
-
-    protected $_productcollection;
 
     /**
      * @var \Magento\Framework\Url\Helper\Data
@@ -22,37 +23,40 @@ class Featured extends \Magento\Catalog\Block\Product\AbstractProduct {
     protected $_catalogProductVisibility;
 
     public function __construct(
-    \Magento\Catalog\Block\Product\Context $context, \Magento\Catalog\Model\ResourceModel\Product\CollectionFactory $productcollection, \Magento\Catalog\Model\Product\Visibility $catalogProductVisibility, Data $wishlistHelper, \Magento\Framework\Url\Helper\Data $urlHelper, array $data = []
+        \Magento\Catalog\Block\Product\Context $context,
+        ProductRepositoryInterface $productRepositoryInterface,
+        SearchCriteriaBuilder $searchCriteriaBuilder,
+        Filter $filter,    
+        \Magento\Catalog\Model\Product\Visibility $catalogProductVisibility, \Magento\Framework\Url\Helper\Data $urlHelper, array $data = []
     ) {
-        $this->_productcollection = $productcollection;
+        $this->filter = $filter;
+        $this->searchCriteriaBuilder = $searchCriteriaBuilder;
+        $this->productRepositoryInterface = $productRepositoryInterface;
         $this->urlHelper = $urlHelper;
-        $this->wishlistHelper = $wishlistHelper;
+        $this->wishlistHelper = $context->getWishlistHelper();
         $this->_catalogProductVisibility = $catalogProductVisibility;
         parent::__construct($context, $data);
     }
 
     public function getCollection() {
 
-        $collection = $this->_productcollection->create();
         if ($this->getfeaturedProductIds()) {
-            $featuredproductIds = $this->getfeaturedProductIds();
-            $collection->addFieldToFilter('entity_id', array('in' => $featuredproductIds));
-            $collection->addAttributeToFilter('status', '1');
-            $collection->setVisibility($this->_catalogProductVisibility->getVisibleInCatalogIds());
-            $collection = $this->_addProductAttributesAndPrices($collection)
-                    ->setPageSize(10)
-                    ->setCurPage(1);
-
-            return $collection;
+           $featuredproductIds = $this->getfeaturedProductIds();
+            $this->searchCriteriaBuilder->addFilter('entity_id', $featuredproductIds, 'in');
+            $searchCriteria = $this->searchCriteriaBuilder->setCurrentPage(1)->setPageSize(10)->create();
+            $products = $this->productRepositoryInterface->getList($searchCriteria)->getItems();
+            return $products;
         }
     }
 
     public function getfeaturedProductIds() {
+        $storeId = $this->_storeManager->getStore()->getId();
+
         $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
         $resource = $objectManager->get('Magento\Framework\App\ResourceConnection');
         $connection = $resource->getConnection();
         $tableName = $resource->getTableName('bv_productgrid');
-        $sql = "SELECT product_id FROM " . $tableName;
+        $sql = "SELECT product_id FROM " . $tableName . ' WHERE store_id=' . $storeId;
         $results = $connection->fetchAll($sql);
         $productIds = array();
         foreach ($results as $result) {
@@ -79,6 +83,19 @@ class Featured extends \Magento\Catalog\Block\Product\AbstractProduct {
         ];
     }
 
-    
+    private function getCustomerWishlistItemsCollection() {
+        $itemsCollection = $this->wishlistHelper->getWishlist()->getItemCollection();
+
+        return $itemsCollection;
+    }
+
+    public function isInWishlist(ProductInterface $product) {
+        $productId = $product->getId();
+
+        $itemsCollection = $this->getCustomerWishlistItemsCollection();
+        $itemsIds = $itemsCollection->getColumnValues('product_id');
+
+        return in_array($productId, $itemsIds);
+    }
 
 }

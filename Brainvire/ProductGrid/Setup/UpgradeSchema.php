@@ -26,6 +26,19 @@ class UpgradeSchema implements UpgradeSchemaInterface {
 
             $installer->getConnection()->createTable($table);
         }
+        if (version_compare($context->getVersion(), '1.1.1') < 0) {
+
+
+            $installer->getConnection()->addColumn(
+                    $installer->getTable('bv_productgrid'), 'store_id', [
+                'type' => \Magento\Framework\DB\Ddl\Table::TYPE_INTEGER,
+                null,
+                'nullable' => false,
+                'unsigned' => false,
+                'comment' => 'Store Id'
+                    ]
+            );
+        }
     }
 
 }
